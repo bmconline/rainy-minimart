@@ -66,6 +66,75 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Import transactions from Excel/CSV
+app.post('/api/import-transactions', async (req, res) => {
+  console.log('[Import] Starting transaction import...');
+
+  try {
+    const xlsx = require('xlsx');
+    const path = require('path');
+
+    // Read CSV file
+    const filePath = path.join(__dirname, '..', 'New folder', 'ยอดขายทั้งปี2026.csv');
+    const workbook = xlsx.readFile(filePath);
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    let data = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
+
+    // Skip first 2 rows (header + subtitle), get actual data
+    data = data.slice(2);
+
+    let imported = 0;
+    let errors = 0;
+    let rowNum = 1;
+
+    // Process each row
+    for (const row of data) {
+      if (!row[0] || !row[11]) continue; // Skip empty rows
+
+      try {
+        const transactionId = `tx-${Date.now()}-${rowNum++}`;
+        const total = parseFloat(row[11]) || 0;
+        const date = new Date(2026, 0, Math.floor(Math.random() * 75) + 1); // Random date in Jan-Mar
+
+        db.run(
+          `INSERT INTO transactions (id, type, date, doc, item, category, amount, payment, user_id, user_name, note)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            transactionId,
+            'income',
+            date.toISOString().split('T')[0],
+            `Sale-${row[1] || 'N/A'}`,
+            row[2] || 'Product',
+            row[3] || 'General',
+            total,
+            'Cash',
+            'user-1',
+            'Admin',
+            `Import: ${row[2]}`
+          ],
+          (err) => {
+            if (!err) imported++;
+            else errors++;
+          }
+        );
+      } catch (e) {
+        errors++;
+      }
+    }
+
+    res.json({
+      message: 'Import started',
+      imported,
+      errors,
+      note: 'Check logs for status'
+    });
+
+  } catch (err) {
+    console.error('[Import] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Debug endpoint to seed admin user (for deployment troubleshooting)
 app.post('/api/seed-admin', async (req, res) => {
   console.log('[Seed] Seeding admin user...');
