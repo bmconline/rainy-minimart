@@ -329,18 +329,26 @@ app.get('/api/summary', (req, res) => {
 
   db.all(
     `SELECT
-      SUM(CASE WHEN type='income' THEN amount ELSE 0 END) as total_income,
-      SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) as total_expense,
+      SUM(CASE WHEN type='income' THEN CAST(amount AS NUMERIC) ELSE 0 END) as total_income,
+      SUM(CASE WHEN type='expense' THEN CAST(amount AS NUMERIC) ELSE 0 END) as total_expense,
       COUNT(*) as total_count,
       COUNT(DISTINCT DATE(date)) as days_count
      FROM transactions`,
     (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
+      if (err) {
+        console.error('Summary error:', err);
+        return res.status(500).json({ error: err.message });
+      }
       const row = rows[0] || {};
-      const profit = (row.total_income || 0) - (row.total_expense || 0);
+      const income = parseFloat(row.total_income) || 0;
+      const expense = parseFloat(row.total_expense) || 0;
+      const profit = income - expense;
+
+      console.log('[Summary] income:', income, 'expense:', expense, 'count:', row.total_count);
+
       res.json({
-        income: row.total_income || 0,
-        expense: row.total_expense || 0,
+        income: income,
+        expense: expense,
         profit: profit,
         count: row.total_count || 0
       });
