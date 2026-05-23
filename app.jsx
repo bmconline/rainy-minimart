@@ -2,25 +2,20 @@
 const { useState: uS, useEffect: uE, useMemo: uM, useRef: uR } = React;
 
 function App() {
-  const [user, setUser] = uS(null);
+  // Auto-login: set admin as default user instead of null
+  const [user, setUser] = uS({
+    id: 'user-1',
+    name: 'Admin',
+    username: 'admin',
+    role: 'admin',
+    initials: 'AD'
+  });
   const [page, setPage] = uS("dashboard");
   const [period, setPeriod] = uS("month");
   const [entryKind, setEntryKind] = uS("income");
   const [txs, setTxs] = uS(() => generateTransactions());
   const [toasts, setToasts] = uS([]);
   const [confirm, setConfirm] = uS({ open: false });
-
-  // Auto-login with admin user
-  uE(() => {
-    // Set admin user directly on app load
-    setUser({
-      id: 'user-1',
-      name: 'Admin',
-      username: 'admin',
-      role: 'admin',
-      initials: 'AD'
-    });
-  }, []);
 
   const pushToast = (msg, kind = "success") => {
     const id = Date.now() + Math.random();
