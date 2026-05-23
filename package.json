@@ -7,10 +7,19 @@
     "node": "18.x"
   },
   "scripts": {
-    "start": "cd backend && npm install && node server.js",
+    "start": "cd backend && node server.js",
     "dev": "cd backend && node server.js"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "pg": "^8.11.0",
+    "sqlite3": "^6.0.1",
+    "xlsx": "^0.18.5"
+  }
 }
