@@ -1,31 +1,23 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const DB_PATH = process.env.DATABASE_PATH || './rainy.db';
+require('dotenv').config();
 
-const db = new sqlite3.Database(DB_PATH, (err) => {
-  if (err) console.error('DB connection error:', err);
-  else console.log('Connected to SQLite database');
-});
+// Use PostgreSQL if DATABASE_URL is provided (Railway), otherwise SQLite
+const usePostgres = !!process.env.DATABASE_URL;
 
-db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS transactions (
-      id TEXT PRIMARY KEY,
-      type TEXT NOT NULL,
-      date TEXT NOT NULL,
-      doc TEXT NOT NULL,
-      item TEXT NOT NULL,
-      category TEXT NOT NULL,
-      amount REAL NOT NULL,
-      payment TEXT NOT NULL,
-      user_id TEXT NOT NULL,
-      user_name TEXT,
-      note TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+let db;
 
-  db.run(`
+if (usePostgres) {
+  // PostgreSQL for production
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  });
+
+  pool.on('error', (err) => {
+    console.error('Unexpected error on idle client', err);
+  });
+
+  pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -33,19 +25,102 @@ db.serialize(() => {
       password TEXT NOT NULL,
       role TEXT NOT NULL,
       initials TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
 
-  db.run(`
-    CREATE INDEX IF NOT EXISTS idx_date ON transactions(date)
-  `);
-  db.run(`
-    CREATE INDEX IF NOT EXISTS idx_type ON transactions(type)
-  `);
-  db.run(`
-    CREATE INDEX IF NOT EXISTS idx_category ON transactions(category)
-  `);
-});
+    CREATE TABLE IF NOT EXISTS transactions (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      date TEXT NOT NULL,
+      doc TEXT NOT NULL,
+      item TEXT NOT NULL,
+      category TEXT NOT NULL,
+      amount NUMERIC NOT NULL,
+      payment TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      user_name TEXT,
+      note TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_date ON transactions(date);
+    CREATE INDEX IF NOT EXISTS idx_type ON transactions(type);
+    CREATE INDEX IF NOT EXISTS idx_category ON transactions(category);
+  `).catch(err => {
+    // Tables may already exist, no error
+    console.log('✅ PostgreSQL connected');
+  });
+
+  db = {
+    run: (sql, params, callback) => {
+      pool.query(sql, params, (err, result) => {
+        if (callback) callback(err);
+      });
+    },
+    get: (sql, params, callback) => {
+      pool.query(sql, params, (err, result) => {
+        callback(err, result?.rows?.[0]);
+      });
+    },
+    all: (sql, params, callback) => {
+      pool.query(sql, params, (err, result) => {
+        callback(err, result?.rows || []);
+      });
+    },
+    serialize: (callback) => {
+      callback();
+    },
+    close: () => {
+      pool.end();
+    },
+  };
+
+  console.log('✅ Using PostgreSQL database');
+} else {
+  // SQLite for local development
+  const sqlite3 = require('sqlite3').verbose();
+  const path = require('path');
+  const DB_PATH = process.env.DATABASE_PATH || './rainy.db';
+
+  db = new sqlite3.Database(DB_PATH, (err) => {
+    if (err) console.error('DB connection error:', err);
+    else console.log('✅ Connected to SQLite database');
+  });
+
+  db.serialize(() => {
+    db.run(`
+      CREATE TABLE IF NOT EXISTS transactions (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        date TEXT NOT NULL,
+        doc TEXT NOT NULL,
+        item TEXT NOT NULL,
+        category TEXT NOT NULL,
+        amount REAL NOT NULL,
+        payment TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        user_name TEXT,
+        note TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL,
+        initials TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    db.run(`CREATE INDEX IF NOT EXISTS idx_date ON transactions(date)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_type ON transactions(type)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_category ON transactions(category)`);
+  });
+}
 
 module.exports = db;
