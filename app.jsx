@@ -10,6 +10,22 @@ function App() {
   const [toasts, setToasts] = uS([]);
   const [confirm, setConfirm] = uS({ open: false });
 
+  // Auto-login on mount
+  uE(() => {
+    fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'admin', password: '1234' })
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.id) {
+          setUser(data);
+        }
+      })
+      .catch(err => console.error('Auto-login failed:', err));
+  }, []);
+
   const pushToast = (msg, kind = "success") => {
     const id = Date.now() + Math.random();
     setToasts(t => [...t, { id, msg, kind }]);
