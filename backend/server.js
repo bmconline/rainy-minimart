@@ -199,7 +199,7 @@ app.get(/^(?!\/api).*/, (req, res) => {
   res.sendFile(path.join(parentDir, 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`✅ Backend running at http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Backend running on port ${PORT}`);
   console.log(`📊 API: http://localhost:${PORT}/api`);
 });
