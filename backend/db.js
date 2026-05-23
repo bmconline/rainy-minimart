@@ -1,4 +1,6 @@
-require('dotenv').config();
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
 
 // Use PostgreSQL if DATABASE_URL is provided (Railway), otherwise SQLite
 const usePostgres = !!process.env.DATABASE_URL;
