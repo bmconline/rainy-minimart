@@ -58,14 +58,15 @@ function App() {
     });
   };
 
-  if (!user) {
-    return (
-      <>
-        <LoginScreen onLogin={handleLogin} />
-        <ToastStack toasts={toasts} />
-      </>
-    );
-  }
+  // Skip login screen - auto logged in as admin
+  // if (!user) {
+  //   return (
+  //     <>
+  //       <LoginScreen onLogin={handleLogin} />
+  //       <ToastStack toasts={toasts} />
+  //     </>
+  //   );
+  // }
 
   let content;
   if (page === "dashboard") content = <Dashboard txs={txs} onNav={setPage} period={period} setPeriod={setPeriod} />;
