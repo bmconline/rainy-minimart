@@ -6,7 +6,7 @@ const path = require('path');
 const db = require('./db');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || (process.env.NODE_ENV === 'production' ? 3000 : 3001);
 
 const corsOptions = {
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
