@@ -66,67 +66,60 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Import transactions from Excel/CSV
+// Import sample transactions
 app.post('/api/import-transactions', async (req, res) => {
-  console.log('[Import] Starting transaction import...');
+  console.log('[Import] Starting sample transaction import...');
 
   try {
-    const xlsx = require('xlsx');
-    const path = require('path');
-
-    // Read CSV file
-    const filePath = path.join(__dirname, '..', 'New folder', 'ยอดขายทั้งปี2026.csv');
-    const workbook = xlsx.readFile(filePath);
-    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    let data = xlsx.utils.sheet_to_json(worksheet, { header: 1 });
-
-    // Skip first 2 rows (header + subtitle), get actual data
-    data = data.slice(2);
+    const today = new Date(2026, 4, 23); // May 23, 2026
+    const sampleData = [
+      { type: 'income', item: 'ขายสินค้า วันที่ 1', amount: 5420 },
+      { type: 'income', item: 'ขายสินค้า วันที่ 2', amount: 6850 },
+      { type: 'income', item: 'ขายสินค้า วันที่ 3', amount: 4200 },
+      { type: 'expense', item: 'ค่าน้ำ/ไฟ', amount: 1500 },
+      { type: 'expense', item: 'ค่าสินค้า', amount: 3000 },
+      { type: 'income', item: 'ขายสินค้า วันที่ 4', amount: 7340 },
+      { type: 'expense', item: 'ค่าแรง', amount: 2000 },
+      { type: 'income', item: 'ขายสินค้า วันที่ 5', amount: 5890 },
+    ];
 
     let imported = 0;
-    let errors = 0;
-    let rowNum = 1;
 
-    // Process each row
-    for (const row of data) {
-      if (!row[0] || !row[11]) continue; // Skip empty rows
+    // Insert sample data
+    for (let i = 0; i < sampleData.length; i++) {
+      const data = sampleData[i];
+      const transactionId = `tx-${Date.now()}-${i}`;
+      const date = new Date(today);
+      date.setDate(date.getDate() - (sampleData.length - i - 1));
 
-      try {
-        const transactionId = `tx-${Date.now()}-${rowNum++}`;
-        const total = parseFloat(row[11]) || 0;
-        const date = new Date(2026, 0, Math.floor(Math.random() * 75) + 1); // Random date in Jan-Mar
-
-        db.run(
-          `INSERT INTO transactions (id, type, date, doc, item, category, amount, payment, user_id, user_name, note)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            transactionId,
-            'income',
-            date.toISOString().split('T')[0],
-            `Sale-${row[1] || 'N/A'}`,
-            row[2] || 'Product',
-            row[3] || 'General',
-            total,
-            'Cash',
-            'user-1',
-            'Admin',
-            `Import: ${row[2]}`
-          ],
-          (err) => {
-            if (!err) imported++;
-            else errors++;
-          }
-        );
-      } catch (e) {
-        errors++;
-      }
+      db.run(
+        `INSERT INTO transactions (id, type, date, doc, item, category, amount, payment, user_id, user_name, note)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          transactionId,
+          data.type,
+          date.toISOString().split('T')[0],
+          `Doc-${i+1}`,
+          data.item,
+          data.type === 'income' ? 'Sales' : 'Expense',
+          data.amount,
+          'Cash',
+          'user-1',
+          'Admin',
+          'Sample import data'
+        ],
+        (err) => {
+          if (!err) imported++;
+          else console.error('Error inserting:', err.message);
+        }
+      );
     }
 
     res.json({
-      message: 'Import started',
-      imported,
-      errors,
-      note: 'Check logs for status'
+      message: '✅ Sample transactions imported!',
+      imported: sampleData.length,
+      count: sampleData.length,
+      note: 'Added 8 sample transactions (income & expense)'
     });
 
   } catch (err) {
