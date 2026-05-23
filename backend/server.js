@@ -16,6 +16,11 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // =============== Authentication ===============
 app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body;
@@ -199,7 +204,21 @@ app.get(/^(?!\/api).*/, (req, res) => {
   res.sendFile(path.join(parentDir, 'index.html'));
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Backend running on port ${PORT}`);
   console.log(`📊 API: http://localhost:${PORT}/api`);
+});
+
+server.on('error', (err) => {
+  console.error('❌ Server error:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('❌ Unhandled rejection:', err);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught exception:', err);
+  process.exit(1);
 });
