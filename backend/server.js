@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const path = require('path');
-const db = require('./db');
+const db = require(path.join(__dirname, './db'));
 
 const app = express();
 const PORT = process.env.PORT || 3001;
