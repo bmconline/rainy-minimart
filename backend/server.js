@@ -303,6 +303,12 @@ app.get('/api/health', (req, res) => {
 const parentDir = path.join(__dirname, '..');
 app.use(express.static(parentDir, {
   setHeaders: (res, filePath) => {
+    // No cache for HTML files to ensure fresh code loads
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
     if (filePath.endsWith('.js')) res.setHeader('Content-Type', 'text/javascript');
     if (filePath.endsWith('.css')) res.setHeader('Content-Type', 'text/css');
   }
