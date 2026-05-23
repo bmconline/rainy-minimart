@@ -69,19 +69,34 @@ if (usePostgres) {
     console.error('❌ Full error:', err);
   });
 
+  // Helper to convert SQLite ? placeholders to PostgreSQL $1, $2, etc.
+  const convertQuery = (sql) => {
+    let paramIndex = 1;
+    return sql.replace(/\?/g, () => `$${paramIndex++}`);
+  };
+
   db = {
     run: (sql, params, callback) => {
-      pool.query(sql, params, (err, result) => {
+      const pgSql = convertQuery(sql);
+      console.log(`[DB] Running: ${pgSql.substring(0, 100)}...`);
+      pool.query(pgSql, params, (err, result) => {
+        if (err) console.error(`[DB] Error: ${err.message}`);
         if (callback) callback(err);
       });
     },
     get: (sql, params, callback) => {
-      pool.query(sql, params, (err, result) => {
+      const pgSql = convertQuery(sql);
+      console.log(`[DB] Getting: ${pgSql.substring(0, 100)}... with params:`, params);
+      pool.query(pgSql, params, (err, result) => {
+        if (err) console.error(`[DB] Error: ${err.message}`);
         callback(err, result?.rows?.[0]);
       });
     },
     all: (sql, params, callback) => {
-      pool.query(sql, params, (err, result) => {
+      const pgSql = convertQuery(sql);
+      console.log(`[DB] Querying: ${pgSql.substring(0, 100)}... with params:`, params);
+      pool.query(pgSql, params, (err, result) => {
+        if (err) console.error(`[DB] Error: ${err.message}`);
         callback(err, result?.rows || []);
       });
     },
