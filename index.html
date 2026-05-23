@@ -1129,7 +1129,7 @@ function SettingsScreen() {
 
 // ============ App Shell ============
 function App() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState({ id: 'user-1', name: 'Admin', username: 'admin', role: 'admin', initials: 'AD' });
   const [page, setPage] = useState("dashboard");
   const [period, setPeriod] = useState("month");
   const [entryKind, setEntryKind] = useState("income");
@@ -1204,9 +1204,10 @@ function App() {
     });
   };
 
-  if (!user) {
-    return (<><LoginScreen onLogin={handleLogin} /><ToastStack toasts={toasts} /></>);
-  }
+  // Skip login - auto logged in as admin
+  // if (!user) {
+  //   return (<><LoginScreen onLogin={handleLogin} /><ToastStack toasts={toasts} /></>);
+  // }
 
   let content;
   if (page === "dashboard") content = <Dashboard txs={txs} onNav={setPage} period={period} setPeriod={setPeriod} />;
