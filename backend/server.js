@@ -76,35 +76,49 @@ app.post('/api/auth/login', (req, res) => {
 
   console.log(`[Login] Attempting login for user: ${username}`);
 
+  let responded = false;
+
   // Add safety timeout
   const loginTimeout = setTimeout(() => {
-    console.error(`[Login] Database query timeout for user: ${username}`);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Database connection timeout. Please try again.' });
+    console.error(`[Login] Request timeout for user: ${username}`);
+    if (!responded) {
+      responded = true;
+      res.status(500).json({ error: 'Login request timeout. Database may be slow. Please try again.' });
     }
-  }, 15000); // 15 second timeout
+  }, 10000); // 10 second timeout
 
   db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
     clearTimeout(loginTimeout);
 
+    if (responded) {
+      console.log(`[Login] Callback fired after response sent for user: ${username}`);
+      return;
+    }
+
     if (err) {
       console.error(`[Login] Database error for user ${username}:`, err.message);
+      responded = true;
       return res.status(500).json({ error: 'Database error: ' + err.message });
     }
+
     if (!user) {
       console.log(`[Login] User not found: ${username}`);
+      responded = true;
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
     try {
       console.log(`[Login] User found: ${username}, comparing password...`);
       const validPassword = await bcrypt.compare(password, user.password);
+
       if (!validPassword) {
         console.log(`[Login] Invalid password for user: ${username}`);
+        responded = true;
         return res.status(401).json({ error: 'Invalid username or password' });
       }
 
       console.log(`[Login] ✅ Successful login for user: ${username}`);
+      responded = true;
       res.json({
         id: user.id,
         name: user.name,
@@ -114,7 +128,10 @@ app.post('/api/auth/login', (req, res) => {
       });
     } catch (error) {
       console.error(`[Login] Password comparison error for user ${username}:`, error.message);
-      res.status(500).json({ error: error.message });
+      if (!responded) {
+        responded = true;
+        res.status(500).json({ error: 'Authentication error: ' + error.message });
+      }
     }
   });
 });
