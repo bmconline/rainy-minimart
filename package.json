@@ -1,0 +1,16 @@
+{
+  "name": "rainy-minimart",
+  "version": "1.0.0",
+  "description": "Accounting system for Rainy Minimart",
+  "main": "backend/server.js",
+  "engines": {
+    "node": "18.x"
+  },
+  "scripts": {
+    "start": "cd backend && npm install && node server.js",
+    "dev": "cd backend && node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
