@@ -16,22 +16,35 @@ if (usePostgres) {
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
   });
 
   pool.on('error', (err) => {
-    console.error('Unexpected error on idle client', err);
+    console.error('❌ Unexpected error on idle client', err);
   });
 
-  // Initialize database tables asynchronously (non-blocking)
-  setTimeout(() => {
-    pool.query('CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT NOT NULL, username TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL, initials TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)').catch(() => {});
-    pool.query('CREATE TABLE IF NOT EXISTS transactions (id TEXT PRIMARY KEY, type TEXT NOT NULL, date TEXT NOT NULL, doc TEXT NOT NULL, item TEXT NOT NULL, category TEXT NOT NULL, amount NUMERIC NOT NULL, payment TEXT NOT NULL, user_id TEXT NOT NULL, user_name TEXT, note TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)').catch(() => {});
-    pool.query('CREATE INDEX IF NOT EXISTS idx_date ON transactions(date)').catch(() => {});
-    pool.query('CREATE INDEX IF NOT EXISTS idx_type ON transactions(type)').catch(() => {});
-    pool.query('CREATE INDEX IF NOT EXISTS idx_category ON transactions(category)').catch(() => {});
-  }, 100);
+  pool.on('connect', () => {
+    console.log('✅ New pool connection established');
+  });
 
-  console.log('✅ PostgreSQL connected');
+  // Test connection and initialize tables
+  pool.query('SELECT NOW()', (err, result) => {
+    if (err) {
+      console.error('❌ PostgreSQL connection test failed:', err.message);
+      console.error('❌ DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
+    } else {
+      console.log('✅ PostgreSQL connected and working');
+
+      // Initialize database tables after connection verified
+      pool.query('CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT NOT NULL, username TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL, initials TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)').catch((e) => console.error('Error creating users table:', e.message));
+      pool.query('CREATE TABLE IF NOT EXISTS transactions (id TEXT PRIMARY KEY, type TEXT NOT NULL, date TEXT NOT NULL, doc TEXT NOT NULL, item TEXT NOT NULL, category TEXT NOT NULL, amount NUMERIC NOT NULL, payment TEXT NOT NULL, user_id TEXT NOT NULL, user_name TEXT, note TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)').catch((e) => console.error('Error creating transactions table:', e.message));
+      pool.query('CREATE INDEX IF NOT EXISTS idx_date ON transactions(date)').catch(() => {});
+      pool.query('CREATE INDEX IF NOT EXISTS idx_type ON transactions(type)').catch(() => {});
+      pool.query('CREATE INDEX IF NOT EXISTS idx_category ON transactions(category)').catch(() => {});
+    }
+  });
 
   db = {
     run: (sql, params, callback) => {

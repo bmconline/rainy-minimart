@@ -29,6 +29,19 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Set timeout for all requests (30 seconds)
+app.use((req, res, next) => {
+  req.setTimeout(30000, () => {
+    console.error(`❌ Request timeout: ${req.method} ${req.path}`);
+    res.status(408).json({ error: 'Request timeout' });
+  });
+  res.setTimeout(30000, () => {
+    console.error(`❌ Response timeout: ${req.method} ${req.path}`);
+    res.status(408).json({ error: 'Response timeout' });
+  });
+  next();
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -42,14 +55,37 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(400).json({ error: 'Username and password required' });
   }
 
+  console.log(`[Login] Attempting login for user: ${username}`);
+
+  // Add safety timeout
+  const loginTimeout = setTimeout(() => {
+    console.error(`[Login] Database query timeout for user: ${username}`);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Database connection timeout. Please try again.' });
+    }
+  }, 15000); // 15 second timeout
+
   db.get('SELECT * FROM users WHERE username = ?', [username], async (err, user) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (!user) return res.status(401).json({ error: 'Invalid username or password' });
+    clearTimeout(loginTimeout);
+
+    if (err) {
+      console.error(`[Login] Database error for user ${username}:`, err.message);
+      return res.status(500).json({ error: 'Database error: ' + err.message });
+    }
+    if (!user) {
+      console.log(`[Login] User not found: ${username}`);
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
 
     try {
+      console.log(`[Login] User found: ${username}, comparing password...`);
       const validPassword = await bcrypt.compare(password, user.password);
-      if (!validPassword) return res.status(401).json({ error: 'Invalid username or password' });
+      if (!validPassword) {
+        console.log(`[Login] Invalid password for user: ${username}`);
+        return res.status(401).json({ error: 'Invalid username or password' });
+      }
 
+      console.log(`[Login] ✅ Successful login for user: ${username}`);
       res.json({
         id: user.id,
         name: user.name,
@@ -58,6 +94,7 @@ app.post('/api/auth/login', (req, res) => {
         initials: user.initials,
       });
     } catch (error) {
+      console.error(`[Login] Password comparison error for user ${username}:`, error.message);
       res.status(500).json({ error: error.message });
     }
   });
