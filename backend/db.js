@@ -3,6 +3,9 @@ require('dotenv').config();
 // Use PostgreSQL if DATABASE_URL is provided (Railway), otherwise SQLite
 const usePostgres = !!process.env.DATABASE_URL;
 
+console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+console.log('NODE_ENV:', process.env.NODE_ENV);
+
 let db;
 
 if (usePostgres) {
@@ -78,7 +81,14 @@ if (usePostgres) {
   console.log('✅ Using PostgreSQL database');
 } else {
   // SQLite for local development
-  const sqlite3 = require('sqlite3').verbose();
+  let sqlite3;
+  try {
+    sqlite3 = require('sqlite3').verbose();
+  } catch (err) {
+    console.error('❌ sqlite3 not available. In production, DATABASE_URL must be set for PostgreSQL connection.');
+    console.error('❌ Error details:', err.message);
+    throw new Error('Database initialization failed: sqlite3 not available and DATABASE_URL not set');
+  }
   const path = require('path');
   const DB_PATH = process.env.DATABASE_PATH || './rainy.db';
 
