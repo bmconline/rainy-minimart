@@ -66,6 +66,29 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Debug endpoint to seed admin user (for deployment troubleshooting)
+app.post('/api/seed-admin', async (req, res) => {
+  console.log('[Seed] Seeding admin user...');
+  try {
+    const hashedPassword = await bcrypt.hash('1234', 10);
+    db.run(
+      'INSERT INTO users (id, name, username, password, role, initials) VALUES (?, ?, ?, ?, ?, ?)',
+      ['user-1', 'Admin', 'admin', hashedPassword, 'admin', 'AD'],
+      (err) => {
+        if (err) {
+          console.error('[Seed] Error:', err.message);
+          return res.status(500).json({ error: 'Failed to create admin user: ' + err.message });
+        }
+        console.log('[Seed] ✅ Admin user created');
+        res.json({ message: 'Admin user created successfully', username: 'admin', password: '1234' });
+      }
+    );
+  } catch (err) {
+    console.error('[Seed] Error:', err.message);
+    res.status(500).json({ error: 'Error: ' + err.message });
+  }
+});
+
 // =============== Authentication ===============
 app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body;

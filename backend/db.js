@@ -37,7 +37,7 @@ if (usePostgres) {
     console.log('✅ PostgreSQL connected and working');
 
     // Initialize all tables in sequence
-    Promise.resolve()
+    return Promise.resolve()
       .then(() => pool.query('CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT NOT NULL, username TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL, initials TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)'))
       .then(() => console.log('✅ Users table ready'))
       .then(() => pool.query('CREATE TABLE IF NOT EXISTS transactions (id TEXT PRIMARY KEY, type TEXT NOT NULL, date TEXT NOT NULL, doc TEXT NOT NULL, item TEXT NOT NULL, category TEXT NOT NULL, amount NUMERIC NOT NULL, payment TEXT NOT NULL, user_id TEXT NOT NULL, user_name TEXT, note TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)'))
@@ -46,27 +46,37 @@ if (usePostgres) {
       .then(() => pool.query('CREATE INDEX IF NOT EXISTS idx_type ON transactions(type)'))
       .then(() => pool.query('CREATE INDEX IF NOT EXISTS idx_category ON transactions(category)'))
       .then(() => console.log('✅ Database indexes ready'))
-      .then(() => pool.query('SELECT COUNT(*) as count FROM users WHERE username = $1', ['admin']))
+      .then(() => {
+        console.log('ℹ️ Checking for admin user...');
+        return pool.query('SELECT COUNT(*)::integer as count FROM users WHERE username = $1', ['admin']);
+      })
       .then((result) => {
-        const count = result.rows[0].count;
+        const count = parseInt(result.rows[0].count) || 0;
+        console.log(`ℹ️ Admin user count: ${count}`);
+
         if (count === 0) {
           console.log('ℹ️ Admin user not found, creating...');
           return bcrypt.hash('1234', 10).then(hashedPassword => {
+            console.log('ℹ️ Password hashed, inserting admin user...');
             return pool.query(
               'INSERT INTO users (id, name, username, password, role, initials) VALUES ($1, $2, $3, $4, $5, $6)',
               ['user-1', 'Admin', 'admin', hashedPassword, 'admin', 'AD']
             );
-          }).then(() => console.log('✅ Admin user created'));
+          }).then(() => console.log('✅ Admin user created successfully'));
         } else {
           console.log('✅ Admin user already exists');
+          return Promise.resolve();
         }
       })
-      .catch((err) => console.error('❌ Database initialization error:', err.message));
+      .catch((err) => {
+        console.error('❌ Database initialization error:', err.message);
+        console.error('❌ Stack:', err.stack);
+      });
 
   }).catch((err) => {
     console.error('❌ PostgreSQL connection test failed:', err.message);
     console.error('❌ DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
-    console.error('❌ Full error:', err);
+    console.error('❌ Full error:', err.stack);
   });
 
   // Helper to convert SQLite ? placeholders to PostgreSQL $1, $2, etc.
