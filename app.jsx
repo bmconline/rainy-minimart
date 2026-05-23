@@ -10,20 +10,16 @@ function App() {
   const [toasts, setToasts] = uS([]);
   const [confirm, setConfirm] = uS({ open: false });
 
-  // Auto-login on mount
+  // Auto-login with admin user
   uE(() => {
-    fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'admin', password: '1234' })
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data.id) {
-          setUser(data);
-        }
-      })
-      .catch(err => console.error('Auto-login failed:', err));
+    // Set admin user directly on app load
+    setUser({
+      id: 'user-1',
+      name: 'Admin',
+      username: 'admin',
+      role: 'admin',
+      initials: 'AD'
+    });
   }, []);
 
   const pushToast = (msg, kind = "success") => {
