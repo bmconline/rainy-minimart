@@ -1,9 +1,22 @@
+console.log('Starting server...');
 require('dotenv').config();
+console.log('Dotenv loaded');
+
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const path = require('path');
-const db = require(path.join(__dirname, './db'));
+
+let db;
+try {
+  console.log('Loading db from:', path.join(__dirname, './db'));
+  db = require(path.join(__dirname, './db'));
+  console.log('✅ Database module loaded');
+} catch (err) {
+  console.error('❌ Failed to load database:', err.message);
+  console.error('Stack:', err.stack);
+  process.exit(1);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
