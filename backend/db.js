@@ -30,19 +30,45 @@ if (usePostgres) {
   });
 
   // Test connection and initialize tables
-  pool.query('SELECT NOW()', (err, result) => {
+  const bcrypt = require('bcrypt');
+
+  pool.query('SELECT NOW()', async (err, result) => {
     if (err) {
       console.error('❌ PostgreSQL connection test failed:', err.message);
       console.error('❌ DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
+      console.error('❌ Full error:', err);
     } else {
       console.log('✅ PostgreSQL connected and working');
 
-      // Initialize database tables after connection verified
-      pool.query('CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT NOT NULL, username TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL, initials TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)').catch((e) => console.error('Error creating users table:', e.message));
-      pool.query('CREATE TABLE IF NOT EXISTS transactions (id TEXT PRIMARY KEY, type TEXT NOT NULL, date TEXT NOT NULL, doc TEXT NOT NULL, item TEXT NOT NULL, category TEXT NOT NULL, amount NUMERIC NOT NULL, payment TEXT NOT NULL, user_id TEXT NOT NULL, user_name TEXT, note TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)').catch((e) => console.error('Error creating transactions table:', e.message));
-      pool.query('CREATE INDEX IF NOT EXISTS idx_date ON transactions(date)').catch(() => {});
-      pool.query('CREATE INDEX IF NOT EXISTS idx_type ON transactions(type)').catch(() => {});
-      pool.query('CREATE INDEX IF NOT EXISTS idx_category ON transactions(category)').catch(() => {});
+      try {
+        // Create tables
+        await pool.query('CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT NOT NULL, username TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL, initials TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)');
+        console.log('✅ Users table ready');
+
+        await pool.query('CREATE TABLE IF NOT EXISTS transactions (id TEXT PRIMARY KEY, type TEXT NOT NULL, date TEXT NOT NULL, doc TEXT NOT NULL, item TEXT NOT NULL, category TEXT NOT NULL, amount NUMERIC NOT NULL, payment TEXT NOT NULL, user_id TEXT NOT NULL, user_name TEXT, note TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)');
+        console.log('✅ Transactions table ready');
+
+        await pool.query('CREATE INDEX IF NOT EXISTS idx_date ON transactions(date)');
+        await pool.query('CREATE INDEX IF NOT EXISTS idx_type ON transactions(type)');
+        await pool.query('CREATE INDEX IF NOT EXISTS idx_category ON transactions(category)');
+        console.log('✅ Database indexes ready');
+
+        // Seed admin user if not exists
+        const adminExists = await pool.query('SELECT COUNT(*) as count FROM users WHERE username = $1', ['admin']);
+        if (adminExists.rows[0].count === 0) {
+          const hashedPassword = await bcrypt.hash('1234', 10);
+          await pool.query(
+            'INSERT INTO users (id, name, username, password, role, initials) VALUES ($1, $2, $3, $4, $5, $6)',
+            ['user-1', 'Admin', 'admin', hashedPassword, 'admin', 'AD']
+          );
+          console.log('✅ Admin user created');
+        } else {
+          console.log('✅ Admin user already exists');
+        }
+
+      } catch (initErr) {
+        console.error('❌ Database initialization error:', initErr.message);
+      }
     }
   });
 

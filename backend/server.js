@@ -8,10 +8,18 @@ const bcrypt = require('bcrypt');
 const path = require('path');
 
 let db;
+let dbReady = false;
+
 try {
   console.log('Loading db from:', path.join(__dirname, './db'));
   db = require(path.join(__dirname, './db'));
   console.log('✅ Database module loaded');
+
+  // Give database 5 seconds to initialize before accepting requests
+  setTimeout(() => {
+    dbReady = true;
+    console.log('✅ Database ready to accept requests');
+  }, 5000);
 } catch (err) {
   console.error('❌ Failed to load database:', err.message);
   console.error('Stack:', err.stack);
@@ -31,6 +39,17 @@ app.use(express.json());
 
 // Set timeout for all requests (30 seconds)
 app.use((req, res, next) => {
+  // Skip health checks and API health checks - they don't need database
+  if (req.path === '/health' || req.path === '/api/health') {
+    return next();
+  }
+
+  // Check if database is ready for other requests
+  if (!dbReady) {
+    console.warn(`⏳ Database not ready yet, delaying: ${req.method} ${req.path}`);
+    return res.status(503).json({ error: 'Database initializing. Please try again in a moment.' });
+  }
+
   req.setTimeout(30000, () => {
     console.error(`❌ Request timeout: ${req.method} ${req.path}`);
     res.status(408).json({ error: 'Request timeout' });
