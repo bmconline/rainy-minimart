@@ -22,11 +22,15 @@ if (usePostgres) {
     console.error('Unexpected error on idle client', err);
   });
 
-  pool.query('CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT NOT NULL, username TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL, initials TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)').catch(() => {});
-  pool.query('CREATE TABLE IF NOT EXISTS transactions (id TEXT PRIMARY KEY, type TEXT NOT NULL, date TEXT NOT NULL, doc TEXT NOT NULL, item TEXT NOT NULL, category TEXT NOT NULL, amount NUMERIC NOT NULL, payment TEXT NOT NULL, user_id TEXT NOT NULL, user_name TEXT, note TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)').catch(() => {});
-  pool.query('CREATE INDEX IF NOT EXISTS idx_date ON transactions(date)').catch(() => {});
-  pool.query('CREATE INDEX IF NOT EXISTS idx_type ON transactions(type)').catch(() => {});
-  pool.query('CREATE INDEX IF NOT EXISTS idx_category ON transactions(category)').catch(() => {});
+  // Initialize database tables asynchronously (non-blocking)
+  setTimeout(() => {
+    pool.query('CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT NOT NULL, username TEXT NOT NULL UNIQUE, password TEXT NOT NULL, role TEXT NOT NULL, initials TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)').catch(() => {});
+    pool.query('CREATE TABLE IF NOT EXISTS transactions (id TEXT PRIMARY KEY, type TEXT NOT NULL, date TEXT NOT NULL, doc TEXT NOT NULL, item TEXT NOT NULL, category TEXT NOT NULL, amount NUMERIC NOT NULL, payment TEXT NOT NULL, user_id TEXT NOT NULL, user_name TEXT, note TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)').catch(() => {});
+    pool.query('CREATE INDEX IF NOT EXISTS idx_date ON transactions(date)').catch(() => {});
+    pool.query('CREATE INDEX IF NOT EXISTS idx_type ON transactions(type)').catch(() => {});
+    pool.query('CREATE INDEX IF NOT EXISTS idx_category ON transactions(category)').catch(() => {});
+  }, 100);
+
   console.log('✅ PostgreSQL connected');
 
   db = {
